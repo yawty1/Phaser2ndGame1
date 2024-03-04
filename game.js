@@ -1,15 +1,15 @@
-//задаю канвас
 var config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: 1920,
+    height: 1080,
     physics: {
         default: 'arcade',
         arcade: {
             gravity: { y: 300 },
-            debug: false
+            debug: true
         }
     },
+
     scene: {
         preload: preload,
         create: create,
@@ -17,48 +17,58 @@ var config = {
     }
 };
 
-var player;
-var stars;
-var bombs;
-var platforms;
-var cursors;
-var score = 0;
-var gameOver = false;
-var scoreText;
-
 var game = new Phaser.Game(config);
+var worldwidth = 9600
 
-function preload ()
-{
+function preload() {
+    //додав загрузку файла небо 
+    this.load.image('tile', 'assets/tile.png')
+    this.load.image('fon+', 'assets/fon+.jpg');
     this.load.image('sky', 'assets/sky.png');
     this.load.image('ground', 'assets/platform.png');
     this.load.image('star', 'assets/star.png');
     this.load.image('bomb', 'assets/bomb.png');
-    this.load.spritesheet('dude', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
+    //додав тіпочка
+    this.load.spritesheet('dude',
+        'assets/dude.png',
+        { frameWidth: 32, frameHeight: 48 }
+    );
 }
 
-function create ()
-{
-    //фот
-    this.add.image(400, 300, 'sky');
+function create() {
+    //додав відображення в лайф сервер
 
+    //додав відображення зірочки (у мене монетка 5 шекелів)
+   // this.add.image(400, 300, 'star');
+    
+    this.add.tileSprite(0, 0, worldwidth, 1080, "fon+").setOrigin(0, 0);
+    
+    //створення здоровой платформи внизу
     platforms = this.physics.add.staticGroup();
+    for (var x = 0; x < worldwidth; x = x + 128) {
+        console.log(x)
+        platforms.create(x, 1080 - 128, 'tile')
 
-    //  створюю платформи
-    platforms.create(400, 568, 'ground').setScale(2).refreshBody();
+    }
 
-    platforms.create(600, 400, 'ground');
-    platforms.create(50, 250, 'ground');
-    platforms.create(750, 220, 'ground');
 
-    // створюю персонажа
+
+    //додав платформи
+    //platforms.create(400, 568, 'ground').setScale(2).refreshBody();
+
+    // platforms.create(600, 400, 'ground');
+    // platforms.create(50, 250, 'ground');
+    // platforms.create(750, 220, 'ground');
+    //додав фізику
+    //platforms = this.physics.add.staticGroup();
+
+    //додав спрайт гравця, фізику стрибка, керування за допомогою стрілочок
     player = this.physics.add.sprite(100, 450, 'dude');
-
-    //  додаю йому фізику стрибка
     player.setBounce(0.2);
     player.setCollideWorldBounds(true);
 
-    //  анімки
+    this.physics.add.collider(player,platforms)
+
     this.anims.create({
         key: 'left',
         frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
@@ -68,7 +78,7 @@ function create ()
 
     this.anims.create({
         key: 'turn',
-        frames: [ { key: 'dude', frame: 4 } ],
+        frames: [{ key: 'dude', frame: 4 }],
         frameRate: 20
     });
 
@@ -78,80 +88,44 @@ function create ()
         frameRate: 10,
         repeat: -1
     });
-
-    cursors = this.input.keyboard.createCursorKeys();
-
-    // створюю зірочки
-    stars = this.physics.add.group({
-        key: 'star',
-        repeat: 11,
-        setXY: { x: 12, y: 0, stepX: 70 }
-    });
-
-    stars.children.iterate(function (child) {
-
-        //  тепер зірочки підстрибують з різною силою
-        child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
-
-    });
-
-    bombs = this.physics.add.group();
-
-    //  скор
-    scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#000' });
-
-    //  добавляю коллайд для зірочок, бомбочок і персонажа
-    this.physics.add.collider(player, platforms);
-    this.physics.add.collider(stars, platforms);
-    this.physics.add.collider(bombs, platforms);
-
-    this.physics.add.overlap(player, stars, collectStar, null, this);
-
-    this.physics.add.collider(player, bombs, hitBomb, null, this);
 }
 
-function update ()
-{
-    if (gameOver)
-    {
+
+function update() {
+    var gameOver = true;
+    if (gameOver) {
         return;
     }
 
-    if (cursors.left.isDown)
-    {
+    if (cursors.left.isDown) {
         player.setVelocityX(-160);
 
         player.anims.play('left', true);
     }
-    else if (cursors.right.isDown)
-    {
+    else if (cursors.right.isDown) {
         player.setVelocityX(160);
 
         player.anims.play('right', true);
     }
-    else
-    {
+    else {
         player.setVelocityX(0);
 
         player.anims.play('turn');
     }
 
-    if (cursors.up.isDown && player.body.touching.down)
-    {
+    if (cursors.up.isDown && player.body.touching.down) {
         player.setVelocityY(-330);
     }
 }
 
-function collectStar (player, star)
-{
+function collectStar(player, star) {
     star.disableBody(true, true);
 
     //  обновлення резулютату коли підбираєш зірочку
     score += 10;
     scoreText.setText('Score: ' + score);
 
-    if (stars.countActive(true) === 0)
-    {
+    if (stars.countActive(true) === 0) {
         //  коли всі зірки зібрані то з'являються нові
         stars.children.iterate(function (child) {
 
@@ -170,13 +144,12 @@ function collectStar (player, star)
     }
 }
 
-function hitBomb (player, bomb)
-{
+function hitBomb(player, bomb) {
     this.physics.pause();
 
     player.setTint(0xff0000);
 
     player.anims.play('turn');
 
-    gameOver = true;
+
 }
